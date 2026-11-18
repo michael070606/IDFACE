@@ -1,32 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Face-Verify - Staff Access</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="shell-header">
+    <strong>Face-Verify</strong>
+    <span class="spacer"></span>
+    <span id="who" class="who" hidden></span>
+    <button id="btn-logout" class="btn-link" type="button" hidden>Log out</button>
+  </header>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <main class="shell-main">
+    <ol id="stepper" class="steps" hidden>
+      <li>ID upload and scan</li><li>Face registration and match</li><li>Personal information</li><li>Result</li>
+    </ol>
 
-<!-- TensorFlow.js core -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.16.0/dist/tf.min.js"></script>
+    <!-- HOME: only Login and Sign up -->
+    <section id="screen-home" class="card" hidden>
+      <h1>IVS</h1>
+      <p class="sub">Staff access for the restaurant system.</p>
+      <button id="go-login" class="btn" type="button">LOG IN</button>
+      <button id="go-signup" class="btn alt" type="button">SIGN UP</button>
+      <p class="note">New staff verify a government ID and register their face. An admin then approves the account and assigns a role.</p>
+    </section>
 
-<!-- TensorFlow WASM backend -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@4.16.0/dist/tf-backend-wasm.min.js"></script>
+    <!-- FACE LOGIN -->
+    <section id="screen-login" class="card" hidden>
+      <h1>LOG IN</h1>
+      <p class="sub">Look at the camera, then follow the instruction.</p>
+      <div class="cam"><video id="login-video" playsinline muted></video><div id="login-cd" class="cd"></div><div id="login-say" class="say">Press Start scan when you are ready.</div></div>
+      <div id="msg-login" class="alert" hidden></div>
+      <button id="btn-login-start" class="btn" type="button">Start scan</button>
+      <button id="show-pin" class="btn-link" type="button">Can't scan? Use your PIN</button>
+      <form id="pin-form" hidden>
+        <h2>LOGIN</h2>
+        <div id="msg-pin" class="alert" hidden></div>
+        <label for="pin-email">Email</label><input id="pin-email" type="email" required autocomplete="username">
+        <label for="pin-code">6-digit PIN</label><input id="pin-code" type="password" inputmode="numeric" maxlength="6" required autocomplete="current-password">
+        <button class="btn alt" type="submit">LOGIN</button>
+      </form>
+      <button class="btn-link" type="button" data-go="home">Back</button>
+    </section>
 
-<!-- Configure WASM before loading Face API -->
-<script>
-  tf.wasm.setWasmPaths(
+    <!-- SIGN UP -->
+    <section id="screen-signup" class="card" hidden>
+      <h1>SIGN UP</h1>
+      <p class="sub">Your user account is created only after you finish verification. Unfinished progress is saved as a draft; use the same email and PIN to resume after a browser reset.</p>
+      <div id="msg-signup" class="alert" hidden></div>
+      <form id="signup-form">
+        <label for="su-email">Email</label><input id="su-email" type="email" required autocomplete="email">
+        <label for="su-pin">Backup PIN (6 digits)</label><input id="su-pin" type="password" inputmode="numeric" maxlength="6" pattern="\d{6}" required autocomplete="new-password">
+        <label for="su-role">Role you are applying for</label>
+        <select id="su-role" required><option value="">Choose a role</option></select>
+        <label class="check"><input id="su-consent" type="checkbox">
+          <span>I agree that my ID details and facial data will be collected and processed for staff identity verification, as described under the Data Privacy Act of 2012 (RA 10173). Only text fields and face templates are stored. The ID image never leaves this device.</span></label>
+        <button class="btn" type="submit">Continue to ID upload</button>
+      </form>
+      <button class="btn-link" type="button" data-go="home">Back</button>
+    </section>
+
+    <!-- STEP 1: ID UPLOAD + SCAN -->
+    <section id="screen-id" class="card wide" hidden>
+      <h1>Upload your valid ID</h1>
+      <p class="sub">Supported IDs: <span id="id-supported"></span>.</p>
+      <div id="msg-id" class="alert" hidden></div>
+      <label for="id-type">ID type</label>
+      <select id="id-type"><option value="">Choose an ID type</option></select>
+      <label for="id-file">Photo of the front of the ID (JPG or PNG, up to 5 MB)</label>
+      <input id="id-file" type="file" accept="image/jpeg,image/png">
+      <img id="id-preview" class="preview" alt="Preview of the uploaded ID" hidden>
+      <ul class="tips"><li>Place the ID flat on a plain surface in good light.</li><li>Keep the whole card in the photo, with no glare or blur; move closer so the text is readable.</li><li>Use a sample or synthetic ID when demonstrating.</li></ul>
+      <p id="id-status" class="note" hidden></p>
+      <button id="btn-scan" class="btn" type="button">Scan ID</button>
+      <p class="note">The photo is read inside your browser and never uploaded. Only the extracted text and a face template are saved.</p>
+    </section>
+
+    <!-- STEP 2: FACE REGISTRATION + MATCH -->
+    <section id="screen-face" class="card wide" hidden>
+      <h1>Register and match your face</h1>
+      <p class="sub">The camera automatically captures five poses when it recognizes them. Follow each instruction and hold still briefly.</p>
+      <ul class="tips"><li>Keep one face centered in the guide; look straight, then to the left and right when asked.</li><li>Move closer, then slightly farther away.</li><li>Keep your entire face visible: no cap, mask or hand in front.</li><li>Use even lighting, with no strong light behind you. Each pose is checked before moving on.</li></ul>
+      <div class="cam"><video id="face-video" playsinline muted></video><div id="face-cd" class="cd"></div><div id="face-say" class="say">Press Start capture when you are ready.</div></div>
+      <div id="msg-face" class="alert" hidden></div>
+      <button id="btn-face-start" class="btn" type="button">Start capture</button>
+      <button id="btn-face-next" class="btn" type="button" hidden>Continue to personal information</button>
+    </section>
+
+    <!-- STEP 3: PERSONAL INFORMATION -->
+    <section id="screen-info" class="card wide" hidden>
+      <h1>Review your information</h1>
+      <p class="sub">These details were read from your ID. Correct anything the scanner got wrong, then submit.</p>
+      <div id="msg-info" class="alert" hidden></div>
+      <form id="info-form">
+        <label for="in-name">Full name</label><input id="in-name" required>
+        <label for="in-dob">Date of birth</label><input id="in-dob" type="date" required>
+        <label for="in-age">Age (calculated)</label><input id="in-age" readonly>
+        <label for="in-address">Address</label><input id="in-address">
+        <label for="in-number">ID number</label><input id="in-number" required>
+        <label for="in-expiry">Expiration date (if the ID has one)</label><input id="in-expiry" type="date">
+        <button class="btn" type="submit">Submit for verification</button>
+      </form>
+    </section>
+
+    <!-- STEP 4: RESULT -->
+    <section id="screen-result" class="card wide" hidden>
+      <h1 id="result-title"></h1>
+      <div id="result-msg" class="alert"></div>
+      <dl id="result-details"></dl>
+      <button class="btn" type="button" data-go="home" id="result-back">Back to login</button>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="screen-dashboard" class="card" hidden>
+      <h1>Welcome, <span id="dash-name"></span></h1>
+      <p class="sub">Signed in as <span id="dash-role"></span>.</p>
+      <button id="btn-approvals" class="btn" type="button" hidden>Pending approvals</button>
+      <div class="alert warn">Role modules for this account go here (kitchen, inventory, reservations, and so on).</div>
+    </section>
+
+    <!-- ADMIN: APPROVALS -->
+    <section id="screen-approvals" class="card wide" hidden>
+      <h1>Pending approvals</h1>
+      <p class="sub">Check each person against your staff list before approving. Verification proves the face matches the ID, not that the person works here.</p>
+      <div id="msg-approvals" class="alert" hidden></div>
+      <div id="approval-list"></div>
+      <button class="btn-link" type="button" id="approvals-back">Back to dashboard</button>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.js"></script>
+  <script>
+  faceapi.tf.wasm.setWasmPaths(
     "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@4.16.0/dist/"
   );
 </script>
-
-<!-- Face API without bundled TensorFlow -->
-<script type="module">
-  import * as faceapi from "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.esm-nobundle.js";
-
-  window.faceapi = faceapi;
-
-  await tf.setBackend("wasm");
-  await tf.ready();
-
-  console.log("TensorFlow backend:", tf.getBackend());
-
-  window.dispatchEvent(new Event("faceapi-ready"));
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
-<script src="script.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
