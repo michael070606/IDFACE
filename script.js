@@ -387,6 +387,9 @@ window.Api = Api;
 
   async function ensureModels(onStatus) {
     if (modelsReady) return;
+
+    await window.faceApiReady;
+
     onStatus('Loading face models (first time only)...');
     await Promise.all([
       faceapi.nets.ssdMobilenetv1.loadFromUri(CFG.MODEL_URL),
@@ -395,8 +398,8 @@ window.Api = Api;
     ]);
     modelsReady = true;
   }
-  const detectorOptions = () => new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
 
+  const detectorOptions = () => new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
   // One live frame -> pose + 128-number face template, or null when no face is found
   async function describe(canvas) {
     const faces = await faceapi.detectAllFaces(canvas, detectorOptions()).withFaceLandmarks().withFaceDescriptors();
