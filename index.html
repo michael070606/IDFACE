@@ -136,9 +136,11 @@
   <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.js"></script>
 
 <script>
-  window.faceApiReady = faceapi.tf.setBackend('cpu')
-    .then(() => faceapi.tf.ready())
-    .then(() => console.log('Face API backend:', faceapi.tf.getBackend()));
+  window.faceApiReady = (async () => {
+    await faceapi.tf.setBackend('cpu');
+    await faceapi.tf.ready();
+    console.log('Face API backend:', faceapi.tf.getBackend());
+  })();
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
